@@ -17,7 +17,7 @@ title: Dmitry Vasilyanov
 email: vdmit11@gmail.com
 description: "a blog"
 baseurl: "" # the subpath of your site, e.g. /blog
-url: "" # the base hostname & protocol for your site, e.g. http://example.com
+url: "https://vdmit.org" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  vdmit11
 
 # Build settings
