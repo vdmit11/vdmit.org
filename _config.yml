@@ -37,10 +37,10 @@ plugins:
   - jekyll-titles-from-headings
 
   # Optional plugins
-  # - jekyll-feed
-  # - jekyll-redirect-from
-  # - jekyll-seo-tag
-  # - jekyll-sitemap
+  - jekyll-feed
+  - jekyll-redirect-from
+  - jekyll-seo-tag
+  - jekyll-sitemap
   # - jekyll-avatar
   # - jemoji
   # - jekyll-mentions
