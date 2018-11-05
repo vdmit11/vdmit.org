@@ -1,14 +1,18 @@
 ---
 title: Debian Live USB using debootstrap
+description: How to install a Debian Linux to USB stick from another (already running) Debian system.
+category: linux
+tags: linux debian sysadmin debootstrap
 ---
 
 In this text, I'm going to describe how to create a kind of Live USB Debian system.
 
-Traditionally, "Live USB" really means a "Hybrid" approache, where a
+Traditionally, "Live USB" is made using a "Hybrid" approach, where a
 Live CD image (an `.iso` file) is written to a USB drive. 
-And when such Live USB system boots, you get a simulated CD drive.  
+And when such Live USB system boots, you get a simulated CD drive.
+
 This is [the way used by Debian Installer](https://www.debian.org/releases/stable/amd64/ch04s03.html.en#usb-copy-isohybrid),
-and this is what you get if you use [Unetbootin](https://unetbootin.github.io/) to create a Live USB
+and this is what you get if you use [UNetbootin](https://unetbootin.github.io/) to create a Live USB
 stick, and this approach is described in existing guides I've seen on the Internet.
 
 And I don't quite like this "hybrid" technique, because it involves CD
@@ -123,8 +127,11 @@ already running Debian system.
 This is how you run it:
 
 ```sh
-~$ sudo debootstrap --arch=amd64 stretch /mnt/liveusb
+~$ sudo debootstrap --arch=amd64 stable /mnt/liveusb
 ```
+
+- `stretch` is the release name.
+   You can see the list of available release scripts in `/usr/share/debootstrap/scripts/`
 
 That will create a root file system inside `/mnt/liveusb`
 (with all those `/usr` and `/bin` and `/lib` directories),
@@ -159,9 +166,9 @@ install`) will fail if they are missing.
 So here how do you mount them:
 
 ```sh
-~$ sudo mount -o bind /dev /mnt/liveusb/dev
-~$ sudo mount -t proc none /mnt/liveusb/proc
-~$ sudo mount -t sysfs none /mnt/liveusb/sys
+~$ sudo mount --bind --make-rslave /dev /mnt/liveusb/dev
+~$ sudo mount --bind --make-rslave /proc /mnt/liveusb/proc
+~$ sudo mount --bind --make-rslave /sys /mnt/liveusb/sys
 ```
 
 
@@ -170,7 +177,7 @@ So here how do you mount them:
 Finally, you're ready to switch to the installed system:
 
 ```sh
-~$ sudo chroot /mnt/liveusb
+~$ sudo chroot /mnt/liveusb /bin/bash
 ```
 
 you may notice your shell prompt changed:
@@ -205,6 +212,11 @@ deb http://deb.debian.org/debian/ stable-updates main contrib non-free
 deb http://deb.debian.org/debian-security stable/updates main
 EOF
 ```
+
+If you want a different release, then you may want to use:
+
+ - [Debian Sources List Generator](https://debgen.simplylinux.ch/)
+ - [Ubuntu Sources List Generator](https://repogen.simplylinux.ch/)
 
 #### Locales
 
@@ -306,13 +318,14 @@ But before you exit, you need to leave some configuration to make the system usa
 
 First, some very basic networking configuration:
 
-```sh
-echo localhost > /mnt/liveusb/etc/hostname
-
+```
 cat <<EOF > /etc/network/interfaces.d/lo
 auto lo
 iface lo inet loopback
 EOF
+
+echo liveusb > /etc/hostname
+sed -i 's/localhost/localhost liveusb/' /etc/hosts
 ```
 
 And second, you need to create a user account.
@@ -320,38 +333,38 @@ Otherwise, you will not be able to log in.
 
 ```sh
 adduser username
-usermod -g sudo username
-usermod -g netdev username
+usermod -G sudo,netdev username
 ```
 
 
 #### Exit from chroot
 
-Now you can exit from your `chroot` environment to your host system:
+Before exit, you can clean up `.deb` files download from the internet.
+They are not needed after installation, so deleting them allows to win some free space on USB stick:
+
+```
+rm -rvf /var/cache/apt/archives/*.deb
+```
+
+Finally, you can exit from your `chroot` environment to your host system:
 
 ```sh
-rm -rvf /var/cache/apt/archives/*.deb
-sync
 exit
 ```
 
 After this point, you're on your host system again.
 
 You're almost done. Before ejecting the USB device, you need to
-un-mount all the file systems in reverse order:
+un-mount all the file systems:
 
 ```sh
-~$ sudo umount /mnt/liveusb/dev 
-~$ sudo umount /mnt/liveusb/proc 
-~$ sudo umount /mnt/liveusb/sys
-~$ sudo umount --force --lazy /mnt/liveusb/
+~$ fuser  --verbose --kill /mnt/liveusb/
+~$ sudo umount --recursive /mnt/liveusb/
 ```
 
-The last `umount --force --lazy` flags are needed because some
-configuration scripts (that were executed automatically during `apt
-install` above) may leave some running processes and keep some files
-open. It is a bit tricky to trace all those files and kill processes,
-so we choose a dirty but easy way (Use the Force, Luke!).
+- `fuser --kill` command is needed to stop background processes
+   that are sometimes spawned during package installation.
+
 
 ## Done
 
@@ -360,9 +373,9 @@ should have a full-weighted first-class-citizen Debian Linux system
 that boots and works directly from the USB Flash device (as if it were
 an HDD).
 
-The nice thing about it (in contrast to CD images) is that the system is writable.
+The nice thing about it is that the system is writable (in contrast to hybrid Live CD/USB systems).
 You can install new packages and update the configuration on the fly,
-straight from the running system (as you normally do with our desktop system).
+straight from the running system (as you normally do on a desktop system).
 
 And the bonus nice thing is that now you leraned this `debootstrap`
 and `chroot` techniques, and now you can make a lot:
@@ -390,7 +403,7 @@ but the process is commplicated, and it is really easier to download
 a prepared virtual machine image (ir an `.iso` file) in this case.
 
 
-#### EFI bootloader
+#### BIOS vs UEFI
 
 This guide assumes you have a motherboard that supports BIOS bootloader mechanism.
 Yes, it is a bit old, but it is simple, and it is still the lowest common denominator.
@@ -408,10 +421,11 @@ I've omitted this option for simplicitly, because the text is already long.
 The described technique involves running `apt install` on a USB Flash drive.
 If the device is slow, the instllation process may take hours.
 
-To speed it up, I prefer to run `debootstrap` and install the majority
-of packages in a temporary directory my main SSD, and then copy
-everything to USB stick before installing the bootloader.
+To speed it up, I prefer to do this whole process in a temporary
+directory on my main SSD, and then copy it to USB stick at the very
+last moment.
 
 But this scenario is more complicated: you have to enter/exit `chroot`
-multiple times, and mount-unmount file systems, and so on.  So I
-omitted it for simplicity, but you can try it.
+multiple times, and mount-unmount file systems, and maybe some extra
+Grub bootloader manipulations, and so on. So I omitted it for
+simplicity, but you can try it.
