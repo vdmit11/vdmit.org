@@ -1,11 +1,12 @@
 ---
+permalink: /linux/debian-live-usb-debootstrap.html
 title: Debian Live USB using debootstrap
 description: How to install a Debian Linux to USB stick from another (already running) Debian system.
 category: linux
 tags: linux debian sysadmin debootstrap
 ---
 
-In this text, I'm going to describe how to create a kind of Live USB Debian system.
+*How to install a Debian Linux to USB stick from another (already running) Debian system.*
 
 Traditionally, "Live USB" is made using a "Hybrid" approach, where a
 Live CD image (an `.iso` file) is written to a USB drive. 
